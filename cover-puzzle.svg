@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <defs>
+    <pattern id="p" width="80" height="80" patternUnits="userSpaceOnUse">
+      <path fill="#c4a03c" d="M0 0h40v40H0z"/>
+      <path fill="#cfa843" d="M40 0h40v40H40z"/>
+      <path fill="#cfa843" d="M0 40h40v40H0z"/>
+      <path fill="#c4a03c" d="M40 40h40v40H40z"/>
+      <path fill="none" stroke="#a88830" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"
+        d="M0 40
+           H18
+           C18 40 18 28 28 28
+           C38 28 38 40 38 40
+           H40
+           V58
+           C40 58 52 58 52 68
+           C52 78 40 78 40 78
+           V80
+           M40 0
+           V18
+           C40 18 52 18 52 28
+           C52 38 40 38 40 38
+           V40
+           H58
+           C58 40 58 52 68 52
+           C78 52 78 40 78 40
+           H80"/>
+      <path fill="none" stroke="#d8ba5a" stroke-width="0.55" opacity="0.55"
+        d="M20 40
+           C20 40 20 30 28 30
+           C36 30 36 40 36 40
+           M40 20
+           C40 20 50 20 50 28
+           C50 36 40 36 40 36"/>
+    </pattern>
+  </defs>
+  <rect width="160" height="160" fill="url(#p)"/>
+</svg>
