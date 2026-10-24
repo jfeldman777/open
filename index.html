@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Книга Открытий</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body class="cover-open">
   <div id="cover-screen" aria-hidden="false">
@@ -23,11 +23,15 @@
         <span class="cover-home-title">Книга Открытий</span>
         <span class="cover-home-hint">обложка</span>
       </button>
-      <p id="page-meta"></p>
+      <div class="page-nav">
+        <button type="button" id="page-prev" title="Предыдущая глава" aria-label="Предыдущая глава">←</button>
+        <p id="page-meta"></p>
+        <button type="button" id="page-next" title="Следующая глава" aria-label="Следующая глава">→</button>
+      </div>
       <h2 id="page-title"></h2>
       <div id="content"></div>
     </article>
   </main>
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
