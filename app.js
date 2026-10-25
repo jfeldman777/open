@@ -152,7 +152,7 @@ async function openPage(index) {
   syncNav();
   els.content.innerHTML = "<p>…</p>";
   try {
-    const res = await fetch(encodeURI(page.md), { cache: "no-store" });
+    const res = await fetch(`${encodeURI(page.md)}?v=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) throw new Error(String(res.status));
     const text = await res.text();
     els.content.innerHTML = renderMarkdown(text);
