@@ -176,6 +176,10 @@ body.cover-open #main {
   line-height: 1.75;
 }
 
+#content a {
+  color: var(--accent);
+}
+
 #content p {
   margin: 0 0 1rem;
 }

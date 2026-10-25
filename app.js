@@ -35,6 +35,14 @@ function renderInline(text) {
   html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
     return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}">`;
   });
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+  });
+  html = html.replace(/(^|[^"'>=])(https?:\/\/[^\s<]+)/g, (_, prefix, url) => {
+    const trimmed = url.replace(/[.,;:!?)]+$/, "");
+    const suffix = url.slice(trimmed.length);
+    return `${prefix}<a href="${trimmed}" target="_blank" rel="noopener noreferrer">${trimmed}</a>${suffix}`;
+  });
   html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   return html;
 }
