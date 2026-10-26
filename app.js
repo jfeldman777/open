@@ -32,11 +32,16 @@ function escapeHtml(text) {
     .replace(/>/g, "&gt;");
 }
 
+function imageTag(src, alt) {
+  const file = src.trim();
+  const path = /[\\/]/.test(file) ? file : `images/${file}`;
+  return `<img src="${escapeHtml(path)}" alt="${escapeHtml(alt || "")}">`;
+}
+
 function renderInline(text) {
   let html = escapeHtml(text);
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
-    return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}">`;
-  });
+  html = html.replace(/!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g, (_, src) => imageTag(src, ""));
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => imageTag(src, alt));
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
     return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
   });
@@ -97,7 +102,7 @@ function renderMarkdown(src) {
       parts.push(renderTable(rows));
       continue;
     }
-    if (/^!\[[^\]]*\]\([^)]+\)$/.test(line)) {
+    if (/^!\[\[.+\]\]$/.test(line) || /^!\[[^\]]*\]\([^)]+\)$/.test(line)) {
       parts.push(`<p>${renderInline(line)}</p>`);
       i += 1;
       continue;
@@ -122,6 +127,7 @@ function renderMarkdown(src) {
         next === "---" ||
         next.startsWith("## ") ||
         next.startsWith("|") ||
+        /^!\[\[.+\]\]$/.test(next) ||
         /^!\[[^\]]*\]\([^)]+\)$/.test(next) ||
         /^\d+\.\s+/.test(next)
       ) {
