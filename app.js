@@ -6,6 +6,8 @@ const els = {
   pageTitle: document.getElementById("page-title"),
   pagePrev: document.getElementById("page-prev"),
   pageNext: document.getElementById("page-next"),
+  tocTop: document.getElementById("toc-top"),
+  tocBottom: document.getElementById("toc-bottom"),
   content: document.getElementById("content"),
 };
 
@@ -133,26 +135,75 @@ function renderMarkdown(src) {
   return parts.join("\n");
 }
 
+function hideCover() {
+  document.body.classList.remove("cover-open");
+  els.coverScreen.classList.add("cover-hidden");
+  els.coverScreen.setAttribute("aria-hidden", "true");
+}
+
 function showCover() {
   document.body.classList.add("cover-open");
+  document.body.classList.remove("view-toc");
   els.coverScreen.classList.remove("cover-hidden");
   els.coverScreen.setAttribute("aria-hidden", "false");
   document.title = "Книга Открытий";
   history.replaceState(null, "", location.pathname + location.search);
 }
 
+function isTocView() {
+  return document.body.classList.contains("view-toc");
+}
+
 function syncNav() {
-  els.pagePrev.disabled = state.index <= 0;
+  if (isTocView()) {
+    els.pagePrev.disabled = false;
+    els.pageNext.disabled = state.pages.length === 0;
+    return;
+  }
+  els.pagePrev.disabled = false;
   els.pageNext.disabled = state.index >= state.pages.length - 1;
+}
+
+function renderTocPage() {
+  const items = state.pages
+    .map((page, index) => {
+      const num = escapeHtml(page.id);
+      const title = escapeHtml(page.title);
+      return `<button type="button" class="toc-page-item" data-index="${index}"><span class="num">${num}</span><span class="title">${title}</span></button>`;
+    })
+    .join("");
+  return `<div class="toc-page"><button type="button" class="toc-page-cover-link">← К обложке</button>${items}</div>`;
+}
+
+function bindTocPageClicks() {
+  els.content.querySelector(".toc-page-cover-link")?.addEventListener("click", showCover);
+  els.content.querySelectorAll(".toc-page-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const index = Number(btn.dataset.index);
+      if (Number.isFinite(index)) openPage(index);
+    });
+  });
+}
+
+function showToc() {
+  hideCover();
+  document.body.classList.add("view-toc");
+  els.pageMeta.textContent = "Оглавление";
+  els.pageTitle.textContent = "Оглавление";
+  document.title = "Оглавление — Книга Открытий";
+  history.replaceState(null, "", `${location.pathname}${location.search}#toc`);
+  syncNav();
+  els.content.innerHTML = renderTocPage();
+  bindTocPageClicks();
+  document.getElementById("reader").scrollTop = 0;
 }
 
 async function openPage(index) {
   const page = state.pages[index];
   if (!page) return;
   state.index = index;
-  document.body.classList.remove("cover-open");
-  els.coverScreen.classList.add("cover-hidden");
-  els.coverScreen.setAttribute("aria-hidden", "true");
+  hideCover();
+  document.body.classList.remove("view-toc");
   els.pageMeta.textContent = `${page.id} / ${state.pages.length}`;
   els.pageTitle.textContent = page.title;
   document.title = `${page.title} — Книга Открытий`;
@@ -171,14 +222,26 @@ async function openPage(index) {
 }
 
 function enterBook() {
-  openPage(0);
+  showToc();
 }
 
 function goPrev() {
-  if (state.index > 0) openPage(state.index - 1);
+  if (isTocView()) {
+    showCover();
+    return;
+  }
+  if (state.index <= 0) {
+    showToc();
+    return;
+  }
+  openPage(state.index - 1);
 }
 
 function goNext() {
+  if (isTocView()) {
+    openPage(0);
+    return;
+  }
   if (state.index < state.pages.length - 1) openPage(state.index + 1);
 }
 
@@ -198,6 +261,8 @@ async function boot() {
   els.coverHome.addEventListener("click", showCover);
   els.pagePrev.addEventListener("click", goPrev);
   els.pageNext.addEventListener("click", goNext);
+  els.tocTop.addEventListener("click", showToc);
+  els.tocBottom.addEventListener("click", showToc);
   document.addEventListener("keydown", (e) => {
     if (document.body.classList.contains("cover-open")) return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -205,6 +270,10 @@ async function boot() {
     if (e.code === "ArrowRight") goNext();
   });
   const hash = decodeURIComponent(location.hash.replace(/^#/, ""));
+  if (hash === "toc") {
+    showToc();
+    return;
+  }
   const fromHash = state.pages.findIndex((p) => p.id === hash);
   if (fromHash >= 0) openPage(fromHash);
 }
