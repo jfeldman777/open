@@ -2,10 +2,10 @@ const els = {
   coverScreen: document.getElementById("cover-screen"),
   coverEnter: document.getElementById("cover-enter"),
   coverHome: document.getElementById("cover-home"),
-  pageMeta: document.getElementById("page-meta"),
+  pageMetas: document.querySelectorAll(".page-meta"),
   pageTitle: document.getElementById("page-title"),
-  pagePrev: document.getElementById("page-prev"),
-  pageNext: document.getElementById("page-next"),
+  pagePrevs: document.querySelectorAll(".page-prev"),
+  pageNexts: document.querySelectorAll(".page-next"),
   tocTop: document.getElementById("toc-top"),
   tocBottom: document.getElementById("toc-bottom"),
   content: document.getElementById("content"),
@@ -160,14 +160,27 @@ function isTocView() {
   return document.body.classList.contains("view-toc");
 }
 
+function setMeta(text) {
+  els.pageMetas.forEach((el) => {
+    el.textContent = text;
+  });
+}
+
+function setNavDisabled(prevsDisabled, nextsDisabled) {
+  els.pagePrevs.forEach((el) => {
+    el.disabled = prevsDisabled;
+  });
+  els.pageNexts.forEach((el) => {
+    el.disabled = nextsDisabled;
+  });
+}
+
 function syncNav() {
   if (isTocView()) {
-    els.pagePrev.disabled = false;
-    els.pageNext.disabled = state.pages.length === 0;
+    setNavDisabled(false, state.pages.length === 0);
     return;
   }
-  els.pagePrev.disabled = false;
-  els.pageNext.disabled = state.index >= state.pages.length - 1;
+  setNavDisabled(false, state.index >= state.pages.length - 1);
 }
 
 function renderTocPage() {
@@ -194,7 +207,7 @@ function bindTocPageClicks() {
 function showToc() {
   hideCover();
   document.body.classList.add("view-toc");
-  els.pageMeta.textContent = "Оглавление";
+  setMeta("Оглавление");
   els.pageTitle.textContent = "Оглавление";
   document.title = "Оглавление — Книга Открытий";
   history.replaceState(null, "", `${location.pathname}${location.search}#toc`);
@@ -210,7 +223,7 @@ async function openPage(index) {
   state.index = index;
   hideCover();
   document.body.classList.remove("view-toc");
-  els.pageMeta.textContent = `${page.id} / ${state.pages.length}`;
+  setMeta(`${page.id} / ${state.pages.length}`);
   els.pageTitle.textContent = page.title;
   document.title = `${page.title} — Книга Открытий`;
   history.replaceState(null, "", `${location.pathname}${location.search}#${page.id}`);
@@ -265,8 +278,8 @@ async function boot() {
     }
   });
   els.coverHome.addEventListener("click", showCover);
-  els.pagePrev.addEventListener("click", goPrev);
-  els.pageNext.addEventListener("click", goNext);
+  els.pagePrevs.forEach((el) => el.addEventListener("click", goPrev));
+  els.pageNexts.forEach((el) => el.addEventListener("click", goNext));
   els.tocTop.addEventListener("click", showToc);
   els.tocBottom.addEventListener("click", showToc);
   document.addEventListener("keydown", (e) => {

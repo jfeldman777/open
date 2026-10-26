@@ -147,8 +147,7 @@ body.cover-open #main {
   border-top: 1px solid var(--border);
 }
 
-body.view-toc .toc-btn,
-body.view-toc .page-nav-bottom {
+body.view-toc .toc-btn {
   display: none;
 }
 
@@ -168,14 +167,14 @@ body.view-toc .page-nav-bottom {
   color: var(--ink);
 }
 
-#page-meta {
+.page-meta {
   margin: 0;
   color: var(--muted);
   font-size: 0.9rem;
 }
 
-#page-prev,
-#page-next {
+.page-prev,
+.page-next {
   border: none;
   background: transparent;
   color: var(--accent);
@@ -186,8 +185,8 @@ body.view-toc .page-nav-bottom {
   padding: 0.1rem 0.35rem;
 }
 
-#page-prev:disabled,
-#page-next:disabled {
+.page-prev:disabled,
+.page-next:disabled {
   color: var(--border);
   cursor: default;
 }
