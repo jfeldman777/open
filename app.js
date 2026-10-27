@@ -21,7 +21,7 @@ function titleFromMd(path) {
     .split("/")
     .pop()
     .replace(/\.md$/i, "")
-    .replace(/^\d+(?:\.\d+)*\.?\s*/, "")
+    .replace(/^(?:\d+(?:\.\d+)*|А\d+)\.?\s*/, "")
     .trim();
 }
 
@@ -96,6 +96,26 @@ function renderMarkdown(src) {
       i += 1;
       continue;
     }
+    if (line.startsWith(">")) {
+      const quotes = [];
+      while (i < lines.length && lines[i].trim().startsWith(">")) {
+        quotes.push(lines[i].trim().replace(/^>\s?/, ""));
+        i += 1;
+      }
+      parts.push(`<blockquote>${quotes.map(renderInline).join("<br>")}</blockquote>`);
+      continue;
+    }
+    if (/^[-*]\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length) {
+        const item = lines[i].trim().match(/^[-*]\s+(.*)$/);
+        if (!item) break;
+        items.push(`<li>${renderInline(item[1])}</li>`);
+        i += 1;
+      }
+      parts.push(`<ul>${items.join("")}</ul>`);
+      continue;
+    }
     if (line.startsWith("|")) {
       const rows = [];
       while (i < lines.length && lines[i].trim().startsWith("|")) {
@@ -129,7 +149,9 @@ function renderMarkdown(src) {
         !next ||
         next === "---" ||
         next.startsWith("## ") ||
+        next.startsWith(">") ||
         next.startsWith("|") ||
+        /^[-*]\s+/.test(next) ||
         /^!\[\[.+\]\]$/.test(next) ||
         /^!\[[^\]]*\]\([^)]+\)$/.test(next) ||
         /^\d+\.\s+/.test(next)
@@ -187,14 +209,24 @@ function syncNav() {
 }
 
 function renderTocPage() {
-  const items = state.pages
-    .map((page, index) => {
-      const num = escapeHtml(page.id);
-      const title = escapeHtml(page.title);
-      return `<button type="button" class="toc-page-item" data-index="${index}"><span class="num">${num}</span><span class="title">${title}</span></button>`;
-    })
-    .join("");
-  return `<div class="toc-page"><button type="button" class="toc-page-cover-link">← К обложке</button>${items}</div>`;
+  const parts = [
+    `<button type="button" class="toc-page-cover-link">← К обложке</button>`,
+  ];
+  let appendixStarted = false;
+  state.pages.forEach((page, index) => {
+    if (page.appendix && !appendixStarted) {
+      appendixStarted = true;
+      parts.push(
+        `<p class="toc-section">Приложение</p><p class="toc-section-note">из книги «Философия++»</p>`,
+      );
+    }
+    const num = escapeHtml(page.id);
+    const title = escapeHtml(page.title);
+    parts.push(
+      `<button type="button" class="toc-page-item" data-index="${index}"><span class="num">${num}</span><span class="title">${title}</span></button>`,
+    );
+  });
+  return `<div class="toc-page">${parts.join("")}</div>`;
 }
 
 function bindTocPageClicks() {

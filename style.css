@@ -296,6 +296,29 @@ body.view-toc .toc-btn {
   outline: none;
 }
 
+.toc-section {
+  margin: 1.35rem 0 0.15rem;
+  padding: 0.35rem 0.45rem 0;
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.toc-section-note {
+  margin: 0 0 0.45rem;
+  padding: 0 0.45rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+#content blockquote {
+  margin: 0 0 1rem;
+  padding: 0.1rem 0 0.1rem 1rem;
+  border-left: 3px solid var(--accent-soft);
+  color: var(--muted);
+}
+
 .toc-page-item {
   display: flex;
   align-items: baseline;
@@ -318,7 +341,7 @@ body.view-toc .toc-btn {
 }
 
 .toc-page-item .num {
-  min-width: 2.2rem;
+  min-width: 2.6rem;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
