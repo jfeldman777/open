@@ -43,6 +43,9 @@ function renderInline(text) {
   html = html.replace(/!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g, (_, src) => imageTag(src, ""));
   html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => imageTag(src, alt));
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
+    if (href.startsWith("#")) {
+      return `<a href="${href}">${label}</a>`;
+    }
     return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
   });
   html = html.replace(/(^|[^"'>=])(https?:\/\/[^\s<]+)/g, (_, prefix, url) => {
@@ -288,6 +291,11 @@ async function boot() {
     if (e.code === "ArrowLeft") goPrev();
     if (e.code === "ArrowRight") goNext();
   });
+  window.addEventListener("hashchange", applyHash);
+  applyHash();
+}
+
+function applyHash() {
   const hash = decodeURIComponent(location.hash.replace(/^#/, ""));
   if (hash === "toc") {
     showToc();
