@@ -57,6 +57,20 @@ function renderInline(text) {
   return html;
 }
 
+function youtubeId(text) {
+  const m = text
+    .trim()
+    .replace(/\s+\(embedded\)\s*$/i, "")
+    .match(
+      /^(?:https?:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})(?:[?&]\S*)?$/i,
+    );
+  return m ? m[1] : null;
+}
+
+function youtubeEmbed(id) {
+  return `<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/${id}" title="YouTube" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+}
+
 function renderTable(rows) {
   const parsed = rows
     .filter((row) => !/^\|\s*-/.test(row))
@@ -130,6 +144,12 @@ function renderMarkdown(src) {
       i += 1;
       continue;
     }
+    const yt = youtubeId(line);
+    if (yt) {
+      parts.push(youtubeEmbed(yt));
+      i += 1;
+      continue;
+    }
     if (/^\d+\.\s+/.test(line)) {
       const items = [];
       while (i < lines.length) {
@@ -154,6 +174,7 @@ function renderMarkdown(src) {
         /^[-*]\s+/.test(next) ||
         /^!\[\[.+\]\]$/.test(next) ||
         /^!\[[^\]]*\]\([^)]+\)$/.test(next) ||
+        youtubeId(next) ||
         /^\d+\.\s+/.test(next)
       ) {
         break;
