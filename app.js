@@ -234,19 +234,13 @@ function renderTocPage() {
   const parts = [
     `<button type="button" class="toc-page-cover-link">← К обложке</button>`,
   ];
-  let appendixStarted = false;
   state.pages.forEach((page, index) => {
     if (page.kind === "part") {
+      const label = page.subtitle ? `<span class="toc-part-label">${escapeHtml(page.subtitle)}</span>` : "";
       parts.push(
-        `<button type="button" class="toc-part" data-index="${index}"><span class="toc-part-label">Часть ${escapeHtml(page.id)}</span><span class="title">${escapeHtml(page.title)}</span></button>`,
+        `<button type="button" class="toc-part" data-index="${index}">${label}<span class="title">${escapeHtml(page.title)}</span></button>`,
       );
       return;
-    }
-    if (page.appendix && !appendixStarted) {
-      appendixStarted = true;
-      parts.push(
-        `<p class="toc-section">Приложение</p><p class="toc-section-note">из книги «Философия++»</p>`,
-      );
     }
     const num = escapeHtml(page.id);
     const title = escapeHtml(page.title);
@@ -288,11 +282,21 @@ async function openPage(index) {
   hideCover();
   document.body.classList.remove("view-toc");
   document.body.classList.toggle("view-part", page.kind === "part");
-  setMeta(page.kind === "part" ? `Часть ${page.id}` : `${page.id} / ${state.pages.length}`);
-  els.pageTitle.textContent = page.title;
   document.title = `${page.title} — Книга Открытий`;
   history.replaceState(null, "", `${location.pathname}${location.search}#${page.id}`);
   syncNav();
+  if (page.kind === "part") {
+    setMeta("");
+    els.pageTitle.textContent = "";
+    const sub = page.subtitle
+      ? `<p class="part-cover-sub">${escapeHtml(page.subtitle)}</p>`
+      : "";
+    els.content.innerHTML = `<div class="part-cover">${sub}<p class="part-cover-title">${escapeHtml(page.title)}</p></div>`;
+    document.getElementById("reader").scrollTop = 0;
+    return;
+  }
+  setMeta(`${page.id} / ${state.pages.length}`);
+  els.pageTitle.textContent = page.title;
   els.content.innerHTML = "<p>…</p>";
   try {
     const res = await fetch(`${encodeURI(page.md)}?v=${Date.now()}`, { cache: "no-store" });
