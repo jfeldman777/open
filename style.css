@@ -197,6 +197,18 @@ body.view-toc .toc-btn {
   line-height: 1.25;
 }
 
+body.view-part #page-title {
+  margin: 4rem 0 0.75rem;
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  text-align: center;
+}
+
+body.view-part #content {
+  text-align: center;
+  color: var(--muted);
+  font-size: 1.2rem;
+}
+
 #content {
   max-width: 42rem;
   font-size: 1.12rem;
@@ -310,6 +322,42 @@ body.view-toc .toc-btn {
 .toc-page-cover-link:focus-visible {
   color: var(--ink);
   outline: none;
+}
+
+.toc-part {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  margin: 1.35rem 0 0.35rem;
+  padding: 0.55rem 0.45rem;
+  border: none;
+  border-radius: 0.25rem;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.toc-part:hover,
+.toc-part:focus-visible {
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.toc-part-label {
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.toc-part .title {
+  font-size: 1.15rem;
+  font-weight: 600;
 }
 
 .toc-section {

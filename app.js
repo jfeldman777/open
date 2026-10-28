@@ -21,7 +21,7 @@ function titleFromMd(path) {
     .split("/")
     .pop()
     .replace(/\.md$/i, "")
-    .replace(/^(?:\d+(?:\.\d+)*|А\d+)\.?\s*/, "")
+    .replace(/^(?:\d+(?:\.\d+)*|А\d+|[IVX]+)\.?\s*/, "")
     .trim();
 }
 
@@ -196,6 +196,7 @@ function hideCover() {
 function showCover() {
   document.body.classList.add("cover-open");
   document.body.classList.remove("view-toc");
+  document.body.classList.remove("view-part");
   els.coverScreen.classList.remove("cover-hidden");
   els.coverScreen.setAttribute("aria-hidden", "false");
   document.title = "Книга Открытий";
@@ -235,6 +236,12 @@ function renderTocPage() {
   ];
   let appendixStarted = false;
   state.pages.forEach((page, index) => {
+    if (page.kind === "part") {
+      parts.push(
+        `<button type="button" class="toc-part" data-index="${index}"><span class="toc-part-label">Часть ${escapeHtml(page.id)}</span><span class="title">${escapeHtml(page.title)}</span></button>`,
+      );
+      return;
+    }
     if (page.appendix && !appendixStarted) {
       appendixStarted = true;
       parts.push(
@@ -252,7 +259,7 @@ function renderTocPage() {
 
 function bindTocPageClicks() {
   els.content.querySelector(".toc-page-cover-link")?.addEventListener("click", showCover);
-  els.content.querySelectorAll(".toc-page-item").forEach((btn) => {
+  els.content.querySelectorAll(".toc-page-item, .toc-part").forEach((btn) => {
     btn.addEventListener("click", () => {
       const index = Number(btn.dataset.index);
       if (Number.isFinite(index)) openPage(index);
@@ -262,6 +269,7 @@ function bindTocPageClicks() {
 
 function showToc() {
   hideCover();
+  document.body.classList.remove("view-part");
   document.body.classList.add("view-toc");
   setMeta("Оглавление");
   els.pageTitle.textContent = "Оглавление";
@@ -279,7 +287,8 @@ async function openPage(index) {
   state.index = index;
   hideCover();
   document.body.classList.remove("view-toc");
-  setMeta(`${page.id} / ${state.pages.length}`);
+  document.body.classList.toggle("view-part", page.kind === "part");
+  setMeta(page.kind === "part" ? `Часть ${page.id}` : `${page.id} / ${state.pages.length}`);
   els.pageTitle.textContent = page.title;
   document.title = `${page.title} — Книга Открытий`;
   history.replaceState(null, "", `${location.pathname}${location.search}#${page.id}`);
