@@ -174,7 +174,9 @@ body.view-toc .toc-btn {
 }
 
 .page-prev,
-.page-next {
+.page-next,
+.gala-prev,
+.gala-next {
   border: none;
   background: transparent;
   color: var(--accent);
@@ -186,9 +188,34 @@ body.view-toc .toc-btn {
 }
 
 .page-prev:disabled,
-.page-next:disabled {
+.page-next:disabled,
+.gala-prev:disabled,
+.gala-next:disabled {
   color: var(--border);
   cursor: default;
+}
+
+.gala-nav {
+  display: none;
+  margin: -0.2rem 0 0.85rem;
+}
+
+body.view-gala .gala-nav {
+  display: flex;
+}
+
+.gala-nav-bottom {
+  margin: 0.35rem 0 0;
+}
+
+body.view-gala .page-nav-bottom {
+  margin-bottom: 0;
+}
+
+.gala-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 #page-title {

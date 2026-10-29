@@ -6,6 +6,9 @@ const els = {
   pageTitle: document.getElementById("page-title"),
   pagePrevs: document.querySelectorAll(".page-prev"),
   pageNexts: document.querySelectorAll(".page-next"),
+  galaMetas: document.querySelectorAll(".gala-meta"),
+  galaPrevs: document.querySelectorAll(".gala-prev"),
+  galaNexts: document.querySelectorAll(".gala-next"),
   tocTop: document.getElementById("toc-top"),
   tocBottom: document.getElementById("toc-bottom"),
   content: document.getElementById("content"),
@@ -130,6 +133,7 @@ function leaveGala() {
   state.galaId = null;
   state.galaRender = false;
   document.body.classList.remove("view-gala");
+  setGalaMeta("");
 }
 
 function beginGalaView(id, meta) {
@@ -145,8 +149,9 @@ function beginGalaView(id, meta) {
   document.body.classList.add("view-gala");
   document.title = "Дискурс — Книга Открытий";
   history.replaceState(null, "", `${location.pathname}${location.search}#gala/${id}`);
+  setOpenMetaForGala();
+  setGalaMeta(meta);
   syncNav();
-  setMeta(meta);
   els.pageTitle.textContent = "…";
   els.content.innerHTML = `${galaBannerHtml()}<p>…</p>`;
   bindGalaChrome();
@@ -219,8 +224,9 @@ async function openGalaBookPage(index) {
   document.body.classList.add("view-gala");
   document.title = `${page.title} — Дискурс в Книге Открытий`;
   history.replaceState(null, "", `${location.pathname}${location.search}#${page.id}`);
+  setOpenMetaForGala();
+  setGalaMeta(`Дискурс ${page.galaId}`);
   syncNav();
-  setMeta(`Дискурс ${page.galaId}`);
   els.pageTitle.textContent = page.title;
   els.content.innerHTML = `${galaBannerHtml()}<p>…</p>`;
   bindGalaChrome();
@@ -471,6 +477,40 @@ function setMeta(text) {
   });
 }
 
+function setGalaMeta(text) {
+  els.galaMetas.forEach((el) => {
+    el.textContent = text;
+  });
+}
+
+function bookLen() {
+  return state.pages.filter((item) => item.kind !== "gala").length;
+}
+
+function currentPage() {
+  return state.pages[state.index];
+}
+
+function nearestPageIndex(from, dir, pred) {
+  for (let i = from + dir; i >= 0 && i < state.pages.length; i += dir) {
+    if (pred(state.pages[i])) return i;
+  }
+  return -1;
+}
+
+function galaGroupLen(group) {
+  return state.pages.filter((item) => item.kind === "gala" && item.galaGroup === group).length;
+}
+
+function setOpenMetaForGala(page) {
+  const current = page || currentPage();
+  if (current?.kind === "gala" && current.galaIndex != null) {
+    setMeta(`${current.galaIndex} / ${galaGroupLen(current.galaGroup)}`);
+    return;
+  }
+  setMeta("");
+}
+
 function setNavDisabled(prevsDisabled, nextsDisabled) {
   els.pagePrevs.forEach((el) => {
     el.disabled = prevsDisabled;
@@ -480,12 +520,30 @@ function setNavDisabled(prevsDisabled, nextsDisabled) {
   });
 }
 
+function setGalaNavDisabled(prevsDisabled, nextsDisabled) {
+  els.galaPrevs.forEach((el) => {
+    el.disabled = prevsDisabled;
+  });
+  els.galaNexts.forEach((el) => {
+    el.disabled = nextsDisabled;
+  });
+}
+
 function syncNav() {
   if (isTocView()) {
     setNavDisabled(false, state.pages.length === 0);
+    setGalaNavDisabled(true, true);
     return;
   }
   setNavDisabled(false, state.index >= state.pages.length - 1);
+  const page = currentPage();
+  if (page?.kind === "gala") {
+    const prevGala = nearestPageIndex(state.index, -1, (item) => item.kind === "gala");
+    const nextGala = nearestPageIndex(state.index, 1, (item) => item.kind === "gala");
+    setGalaNavDisabled(prevGala < 0, nextGala < 0);
+    return;
+  }
+  setGalaNavDisabled(true, true);
 }
 
 function renderTocPage() {
@@ -537,6 +595,7 @@ function showToc() {
   document.body.classList.remove("view-part");
   document.body.classList.add("view-toc");
   setMeta("Оглавление");
+  setGalaMeta("");
   els.pageTitle.textContent = "Оглавление";
   document.title = "Оглавление — Книга Открытий";
   history.replaceState(null, "", `${location.pathname}${location.search}#toc`);
@@ -572,8 +631,8 @@ async function openPage(index) {
     document.getElementById("reader").scrollTop = 0;
     return;
   }
-  const bookLen = state.pages.filter((item) => item.kind !== "gala").length;
-  setMeta(`${page.id} / ${bookLen}`);
+  setMeta(`${page.id} / ${bookLen()}`);
+  setGalaMeta("");
   els.pageTitle.textContent = page.title;
   els.content.innerHTML = "<p>…</p>";
   try {
@@ -611,6 +670,16 @@ function goNext() {
   if (state.index < state.pages.length - 1) openPage(state.index + 1);
 }
 
+function goGalaPrev() {
+  const index = nearestPageIndex(state.index, -1, (item) => item.kind === "gala");
+  if (index >= 0) openPage(index);
+}
+
+function goGalaNext() {
+  const index = nearestPageIndex(state.index, 1, (item) => item.kind === "gala");
+  if (index >= 0) openPage(index);
+}
+
 async function boot() {
   const manifest = await fetch(`pages.json?v=${Date.now()}`, { cache: "no-store" }).then((r) => r.json());
   state.pages = manifest.pages.map((page) => ({
@@ -633,13 +702,21 @@ async function boot() {
   els.coverHome.addEventListener("click", showCover);
   els.pagePrevs.forEach((el) => el.addEventListener("click", goPrev));
   els.pageNexts.forEach((el) => el.addEventListener("click", goNext));
+  els.galaPrevs.forEach((el) => el.addEventListener("click", goGalaPrev));
+  els.galaNexts.forEach((el) => el.addEventListener("click", goGalaNext));
   els.tocTop.addEventListener("click", showToc);
   els.tocBottom.addEventListener("click", showToc);
   document.addEventListener("keydown", (e) => {
     if (document.body.classList.contains("cover-open")) return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-    if (e.code === "ArrowLeft") goPrev();
-    if (e.code === "ArrowRight") goNext();
+    if (e.code === "ArrowLeft") {
+      if (currentPage()?.kind === "gala") goGalaPrev();
+      else goPrev();
+    }
+    if (e.code === "ArrowRight") {
+      if (currentPage()?.kind === "gala") goGalaNext();
+      else goNext();
+    }
   });
   window.addEventListener("hashchange", applyHash);
   applyHash();

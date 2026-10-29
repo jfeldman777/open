@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Книга Открытий</title>
-  <link rel="stylesheet" href="style.css?v=16">
+  <link rel="stylesheet" href="style.css?v=17">
 </head>
 <body class="cover-open">
   <div id="cover-screen" aria-hidden="false">
@@ -29,6 +29,11 @@
         <button type="button" class="page-next" title="Следующая глава" aria-label="Следующая глава">→</button>
         <button type="button" id="toc-top" class="toc-btn" title="Оглавление" aria-label="К оглавлению">☰ Оглавление</button>
       </div>
+      <div class="page-nav gala-nav">
+        <button type="button" class="gala-prev" title="Предыдущая страница Дискурса" aria-label="Предыдущая страница Дискурса">←</button>
+        <p class="gala-meta"></p>
+        <button type="button" class="gala-next" title="Следующая страница Дискурса" aria-label="Следующая страница Дискурса">→</button>
+      </div>
       <h2 id="page-title"></h2>
       <div id="content"></div>
       <div class="page-nav page-nav-bottom">
@@ -37,8 +42,13 @@
         <button type="button" class="page-next" title="Следующая глава" aria-label="Следующая глава">→</button>
         <button type="button" id="toc-bottom" class="toc-btn" title="Оглавление" aria-label="К оглавлению">☰ Оглавление</button>
       </div>
+      <div class="page-nav gala-nav gala-nav-bottom">
+        <button type="button" class="gala-prev" title="Предыдущая страница Дискурса" aria-label="Предыдущая страница Дискурса">←</button>
+        <p class="gala-meta"></p>
+        <button type="button" class="gala-next" title="Следующая страница Дискурса" aria-label="Следующая страница Дискурса">→</button>
+      </div>
     </article>
   </main>
-  <script src="app.js?v=21"></script>
+  <script src="app.js?v=24"></script>
 </body>
 </html>
