@@ -470,10 +470,43 @@ function syncNav() {
   setNavDisabled(false, state.index >= state.pages.length - 1);
 }
 
-function renderTocPage() {
+function galaPageTitle(page) {
+  const src = page?.sourcePage || page;
+  if (!src) return "";
+  return titleFromMd(src.md).replace(/^-\s*/, "").trim() || src.id;
+}
+
+function renderGalaToc(groups, catalog) {
+  if (!groups || typeof groups !== "object") return "";
+  const byId = new Map((catalog || []).map((page) => [page.id, page]));
+  return Object.entries(groups)
+    .map(([key, group]) => {
+      const title = escapeHtml(group.title || key);
+      const rows = (group.pages || [])
+        .map((id) => {
+          const page = byId.get(id);
+          const name = page ? galaPageTitle(page) : id;
+          return `<div class="toc-gala-page"><span class="num">${escapeHtml(id)}</span><span class="title">${escapeHtml(name)}</span></div>`;
+        })
+        .join("");
+      return `<div class="toc-gala-block"><button type="button" class="toc-gala-link" data-gala="${escapeHtml(key)}">${title}</button>${rows}</div>`;
+    })
+    .join("");
+}
+
+async function renderTocPage() {
   const parts = [
     `<button type="button" class="toc-page-cover-link">← К обложке</button>`,
   ];
+  let groups = null;
+  let catalog = [];
+  if (state.pages.some((page) => page.galaHub)) {
+    try {
+      [groups, catalog] = await Promise.all([loadGalaGroups(), loadGalaCatalog()]);
+    } catch {
+      groups = null;
+    }
+  }
   state.pages.forEach((page, index) => {
     if (page.kind === "part") {
       const label = page.subtitle ? `<span class="toc-part-label">${escapeHtml(page.subtitle)}</span>` : "";
@@ -487,6 +520,9 @@ function renderTocPage() {
     parts.push(
       `<button type="button" class="toc-page-item" data-index="${index}"><span class="num">${num}</span><span class="title">${title}</span></button>`,
     );
+    if (page.galaHub && groups) {
+      parts.push(renderGalaToc(groups, catalog));
+    }
   });
   return `<div class="toc-page">${parts.join("")}</div>`;
 }
@@ -499,9 +535,15 @@ function bindTocPageClicks() {
       if (Number.isFinite(index)) openPage(index);
     });
   });
+  els.content.querySelectorAll(".toc-gala-link").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.gala;
+      if (id) openGalaPage(id);
+    });
+  });
 }
 
-function showToc() {
+async function showToc() {
   leaveGala();
   hideCover();
   document.body.classList.remove("view-part");
@@ -511,7 +553,8 @@ function showToc() {
   document.title = "Оглавление — Книга Открытий";
   history.replaceState(null, "", `${location.pathname}${location.search}#toc`);
   syncNav();
-  els.content.innerHTML = renderTocPage();
+  els.content.innerHTML = "<p>…</p>";
+  els.content.innerHTML = await renderTocPage();
   bindTocPageClicks();
   document.getElementById("reader").scrollTop = 0;
 }
