@@ -138,13 +138,17 @@ async function fetchGalaMarkdown(page) {
   return res.text();
 }
 
+function galaPageLabel(page) {
+  const title = titleFromMd(page.md).replace(/^-\s*/, "").trim() || page.id;
+  return `${escapeHtml(title)} <span class="gala-page-id">(${escapeHtml(page.id)})</span>`;
+}
+
 function galaSectionHtml(page, text) {
-  const title = titleFromMd(page.md);
   const sid = `gala-p-${page.id}`;
   const body = text == null
     ? '<p class="load-error">Не удалось открыть страницу.</p>'
     : renderGalaMarkdown(text);
-  return `<section class="gala-section" id="${escapeHtml(sid)}"><h2 class="gala-section-title">${escapeHtml(title)}</h2>${body}</section>`;
+  return `<section class="gala-section" id="${escapeHtml(sid)}"><h2 class="gala-section-title">${galaPageLabel(page)}</h2>${body}</section>`;
 }
 
 async function openGalaGroup(id, group) {
@@ -168,7 +172,7 @@ async function openGalaGroup(id, group) {
     }));
     if (state.galaId !== id) return;
     const nav = `<ul class="gala-group-nav">${parts
-      .map(({ page }) => `<li><a class="gala-jump" href="#gala-p-${escapeHtml(page.id)}" data-target="gala-p-${escapeHtml(page.id)}">${escapeHtml(titleFromMd(page.md))}</a></li>`)
+      .map(({ page }) => `<li><a class="gala-jump" href="#gala-p-${escapeHtml(page.id)}" data-target="gala-p-${escapeHtml(page.id)}">${galaPageLabel(page)}</a></li>`)
       .join("")}</ul>`;
     const sections = parts.map(({ page, text }) => galaSectionHtml(page, text)).join("");
     els.content.innerHTML = galaBannerHtml() + nav + (sections || '<p class="load-error">В группе нет страниц.</p>');
