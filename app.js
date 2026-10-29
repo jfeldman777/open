@@ -48,6 +48,33 @@ function toGalaHash(href) {
   return null;
 }
 
+function parseIncludeFromMd(path) {
+  const name = String(path || "")
+    .split("/")
+    .pop()
+    .replace(/\.md$/i, "");
+  const match = name.match(/^(\d+(?:\.\d+)*)-(\d+(?:\.\d+)*)/);
+  if (!match) return null;
+  return { id: match[1], include: match[2] };
+}
+
+function resolveGalaPages(rawPages) {
+  const pages = rawPages.map((page) => {
+    const parsed = parseIncludeFromMd(page.md);
+    const include = page.include || parsed?.include || null;
+    const id = include && parsed?.id ? parsed.id : page.id;
+    return { ...page, id, include, sourcePage: null };
+  });
+  const byId = new Map(pages.map((page) => [page.id, page]));
+  for (const page of pages) {
+    if (!page.include) continue;
+    const source = byId.get(page.include);
+    if (!source || source.include) continue;
+    page.sourcePage = source;
+  }
+  return pages;
+}
+
 function loadGalaCatalog() {
   if (!galaCatalogPromise) {
     galaCatalogPromise = fetch(`${galaBase()}/pages.json?v=${Date.now()}`, { cache: "no-store" })
@@ -55,7 +82,7 @@ function loadGalaCatalog() {
         if (!res.ok) throw new Error(String(res.status));
         return res.json();
       })
-      .then((data) => data.pages || [])
+      .then((data) => resolveGalaPages(data.pages || []))
       .catch((err) => {
         galaCatalogPromise = null;
         throw err;
@@ -133,13 +160,15 @@ function renderGalaMarkdown(text) {
 }
 
 async function fetchGalaMarkdown(page) {
-  const res = await fetch(`${galaBase()}/${encodeURI(page.md)}?v=${Date.now()}`, { cache: "no-store" });
+  const src = page.sourcePage || page;
+  const res = await fetch(`${galaBase()}/${encodeURI(src.md)}?v=${Date.now()}`, { cache: "no-store" });
   if (!res.ok) throw new Error(String(res.status));
   return res.text();
 }
 
 function galaPageLabel(page) {
-  const title = titleFromMd(page.md).replace(/^-\s*/, "").trim() || page.id;
+  const src = page.sourcePage || page;
+  const title = titleFromMd(src.md).replace(/^-\s*/, "").trim() || src.id;
   return `${escapeHtml(title)} <span class="gala-page-id">(${escapeHtml(page.id)})</span>`;
 }
 
@@ -221,7 +250,7 @@ function titleFromMd(path) {
     .split("/")
     .pop()
     .replace(/\.md$/i, "")
-    .replace(/^(?:\d+(?:\.\d+)*|А\d+|Б\d+|B|[IVX]+)\.?\s*/, "")
+    .replace(/^(?:\d+(?:\.\d+)*(?:-\d+(?:\.\d+)*)?|А\d+|Б\d+|B|[IVX]+)\.?\s*/, "")
     .trim();
 }
 
