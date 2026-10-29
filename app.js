@@ -498,9 +498,10 @@ async function openPage(index) {
     setMeta("");
     els.pageTitle.textContent = "";
     const sub = page.subtitle
-      ? `<p class="part-cover-sub">${escapeHtml(page.subtitle)}</p>`
+      ? `<span class="part-cover-sub">${escapeHtml(page.subtitle)}</span>`
       : "";
-    els.content.innerHTML = `<div class="part-cover">${sub}<p class="part-cover-title">${escapeHtml(page.title)}</p></div>`;
+    els.content.innerHTML = `<button type="button" class="cover-image-btn part-cover" title="Открыть" aria-label="Открыть">${sub}<span class="part-cover-title">${escapeHtml(page.title)}</span></button>`;
+    els.content.querySelector(".part-cover")?.addEventListener("click", goNext);
     document.getElementById("reader").scrollTop = 0;
     return;
   }
