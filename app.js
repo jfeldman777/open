@@ -179,13 +179,16 @@ function spliceGalaPages(openPages, groups, catalog) {
     out.push(page);
     if (!page.galaHub) continue;
     for (const [key, group] of Object.entries(groups || {})) {
+      let n = 0;
       for (const gid of group.pages || []) {
         const src = byId.get(gid);
         if (!src) continue;
+        n += 1;
         out.push({
           id: `gala/${gid}`,
           kind: "gala",
           galaId: gid,
+          galaIndex: n,
           galaGroup: key,
           galaGroupTitle: group.title || key,
           title: galaPageTitle(src),
@@ -494,10 +497,12 @@ function renderTocPage() {
     if (page.kind === "gala") {
       if (page.galaGroup !== lastGroup) {
         lastGroup = page.galaGroup;
-        parts.push(`<div class="toc-gala-label">${escapeHtml(page.galaGroupTitle)}</div>`);
+        parts.push(
+          `<button type="button" class="toc-gala-label" data-index="${index}">${escapeHtml(page.galaGroupTitle)}</button>`,
+        );
       }
       parts.push(
-        `<button type="button" class="toc-page-item toc-gala-item" data-index="${index}"><span class="num">${escapeHtml(page.galaId)}</span><span class="title">${escapeHtml(page.title)}</span></button>`,
+        `<button type="button" class="toc-page-item toc-gala-item" data-index="${index}"><span class="num">${page.galaIndex}</span><span class="title">${escapeHtml(page.title)}</span><span class="gala-page-id">(${escapeHtml(page.galaId)})</span></button>`,
       );
       return;
     }
@@ -518,7 +523,7 @@ function renderTocPage() {
 
 function bindTocPageClicks() {
   els.content.querySelector(".toc-page-cover-link")?.addEventListener("click", showCover);
-  els.content.querySelectorAll(".toc-page-item, .toc-part").forEach((btn) => {
+  els.content.querySelectorAll(".toc-page-item, .toc-part, .toc-gala-label").forEach((btn) => {
     btn.addEventListener("click", () => {
       const index = Number(btn.dataset.index);
       if (Number.isFinite(index)) openPage(index);
