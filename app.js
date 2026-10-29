@@ -684,7 +684,7 @@ async function boot() {
   const manifest = await fetch(`pages.json?v=${Date.now()}`, { cache: "no-store" }).then((r) => r.json());
   state.pages = manifest.pages.map((page) => ({
     ...page,
-    title: titleFromMd(page.md),
+    title: page.title || titleFromMd(page.md),
   }));
   try {
     const [groups, catalog] = await Promise.all([loadGalaGroups(), loadGalaCatalog()]);
