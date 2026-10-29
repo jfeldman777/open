@@ -166,83 +166,98 @@ async function fetchGalaMarkdown(page) {
   return res.text();
 }
 
-function galaPageLabel(page) {
-  const src = page.sourcePage || page;
-  const title = titleFromMd(src.md).replace(/^-\s*/, "").trim() || src.id;
-  return `${escapeHtml(title)} <span class="gala-page-id">(${escapeHtml(page.id)})</span>`;
+function galaPageTitle(page) {
+  const src = page?.sourcePage || page;
+  if (!src) return "";
+  return titleFromMd(src.md).replace(/^-\s*/, "").trim() || src.id;
 }
 
-function galaSectionHtml(page, text) {
-  const sid = `gala-p-${page.id}`;
-  const body = text == null
-    ? '<p class="load-error">Не удалось открыть страницу.</p>'
-    : renderGalaMarkdown(text);
-  return `<section class="gala-section" id="${escapeHtml(sid)}"><h2 class="gala-section-title">${galaPageLabel(page)}</h2>${body}</section>`;
-}
-
-async function openGalaGroup(id, group) {
-  const title = group.title || id;
-  const ids = Array.isArray(group.pages) ? group.pages : [];
-  beginGalaView(id, `Дискурс · ${ids.length}`);
-  els.pageTitle.textContent = title;
-  document.title = `${title} — Дискурс в Книге Открытий`;
-  try {
-    const catalog = await loadGalaCatalog();
-    if (state.galaId !== id) return;
-    const items = ids
-      .map((pageId) => catalog.find((item) => item.id === pageId))
-      .filter(Boolean);
-    const parts = await Promise.all(items.map(async (page) => {
-      try {
-        return { page, text: await fetchGalaMarkdown(page) };
-      } catch {
-        return { page, text: null };
+function spliceGalaPages(openPages, groups, catalog) {
+  const byId = new Map((catalog || []).map((page) => [page.id, page]));
+  const out = [];
+  for (const page of openPages) {
+    out.push(page);
+    if (!page.galaHub) continue;
+    for (const [key, group] of Object.entries(groups || {})) {
+      for (const gid of group.pages || []) {
+        const src = byId.get(gid);
+        if (!src) continue;
+        out.push({
+          id: `gala/${gid}`,
+          kind: "gala",
+          galaId: gid,
+          galaGroup: key,
+          galaGroupTitle: group.title || key,
+          title: galaPageTitle(src),
+          source: src,
+        });
       }
-    }));
-    if (state.galaId !== id) return;
-    const nav = `<ul class="gala-group-nav">${parts
-      .map(({ page }) => `<li><a class="gala-jump" href="#gala-p-${escapeHtml(page.id)}" data-target="gala-p-${escapeHtml(page.id)}">${galaPageLabel(page)}</a></li>`)
-      .join("")}</ul>`;
-    const sections = parts.map(({ page, text }) => galaSectionHtml(page, text)).join("");
-    els.content.innerHTML = galaBannerHtml() + nav + (sections || '<p class="load-error">В группе нет страниц.</p>');
-    bindGalaChrome();
-  } catch {
-    if (state.galaId !== id) return;
-    els.content.innerHTML = `${galaBannerHtml()}<p class="load-error">Не удалось открыть группу Дискурса.</p>`;
-    bindGalaChrome();
+    }
   }
-  document.getElementById("reader").scrollTop = 0;
+  return out;
 }
 
-async function openGalaPage(id) {
+function findGalaPageIndex(id) {
+  const groupFirst = state.pages.findIndex((page) => page.kind === "gala" && page.galaGroup === id);
+  if (groupFirst >= 0) return groupFirst;
+  return state.pages.findIndex((page) => page.kind === "gala" && (page.galaId === id || page.id === `gala/${id}`));
+}
+
+async function openGalaBookPage(index) {
+  const page = state.pages[index];
+  if (!page || page.kind !== "gala") return;
+  const hub = state.pages.findIndex((item) => item.galaHub);
+  state.index = index;
+  state.galaId = page.galaId;
+  state.galaFromIndex = hub >= 0 ? hub : null;
+  hideCover();
+  document.body.classList.remove("view-toc");
+  document.body.classList.remove("view-part");
+  document.body.classList.add("view-gala");
+  document.title = `${page.title} — Дискурс в Книге Открытий`;
+  history.replaceState(null, "", `${location.pathname}${location.search}#${page.id}`);
+  syncNav();
+  setMeta(`Дискурс ${page.galaId}`);
+  els.pageTitle.textContent = page.title;
+  els.content.innerHTML = `${galaBannerHtml()}<p>…</p>`;
+  bindGalaChrome();
   try {
-    const groups = await loadGalaGroups();
-    if (groups && groups[id]) {
-      await openGalaGroup(id, groups[id]);
-      return;
-    }
-  } catch {
-    // Fall through to a single Discourse page.
-  }
-  beginGalaView(id, `Дискурс ${id}`);
-  try {
-    const catalog = await loadGalaCatalog();
-    if (state.galaId !== id) return;
-    const page = catalog.find((item) => item.id === id);
-    if (!page) throw new Error("missing");
-    const title = titleFromMd(page.md);
-    els.pageTitle.textContent = title;
-    document.title = `${title} — Дискурс в Книге Открытий`;
-    const text = await fetchGalaMarkdown(page);
-    if (state.galaId !== id) return;
+    const text = await fetchGalaMarkdown(page.source);
+    if (state.index !== index) return;
     els.content.innerHTML = galaBannerHtml() + renderGalaMarkdown(text);
     bindGalaChrome();
   } catch {
-    if (state.galaId !== id) return;
+    if (state.index !== index) return;
     els.content.innerHTML = `${galaBannerHtml()}<p class="load-error">Не удалось открыть страницу Дискурса.</p>`;
     bindGalaChrome();
   }
   document.getElementById("reader").scrollTop = 0;
+}
+
+function openGalaPage(id) {
+  const index = findGalaPageIndex(id);
+  if (index >= 0) {
+    openPage(index);
+    return;
+  }
+  beginGalaView(id, `Дискурс ${id}`);
+  loadGalaCatalog()
+    .then(async (catalog) => {
+      if (state.galaId !== id) return;
+      const page = catalog.find((item) => item.id === id);
+      if (!page) throw new Error("missing");
+      els.pageTitle.textContent = galaPageTitle(page);
+      document.title = `${els.pageTitle.textContent} — Дискурс в Книге Открытий`;
+      const text = await fetchGalaMarkdown(page);
+      if (state.galaId !== id) return;
+      els.content.innerHTML = galaBannerHtml() + renderGalaMarkdown(text);
+      bindGalaChrome();
+    })
+    .catch(() => {
+      if (state.galaId !== id) return;
+      els.content.innerHTML = `${galaBannerHtml()}<p class="load-error">Не удалось открыть страницу Дискурса.</p>`;
+      bindGalaChrome();
+    });
 }
 
 function titleFromMd(path) {
@@ -470,44 +485,23 @@ function syncNav() {
   setNavDisabled(false, state.index >= state.pages.length - 1);
 }
 
-function galaPageTitle(page) {
-  const src = page?.sourcePage || page;
-  if (!src) return "";
-  return titleFromMd(src.md).replace(/^-\s*/, "").trim() || src.id;
-}
-
-function renderGalaToc(groups, catalog) {
-  if (!groups || typeof groups !== "object") return "";
-  const byId = new Map((catalog || []).map((page) => [page.id, page]));
-  return Object.entries(groups)
-    .map(([key, group]) => {
-      const title = escapeHtml(group.title || key);
-      const rows = (group.pages || [])
-        .map((id) => {
-          const page = byId.get(id);
-          const name = page ? galaPageTitle(page) : id;
-          return `<div class="toc-gala-page"><span class="num">${escapeHtml(id)}</span><span class="title">${escapeHtml(name)}</span></div>`;
-        })
-        .join("");
-      return `<div class="toc-gala-block"><button type="button" class="toc-gala-link" data-gala="${escapeHtml(key)}">${title}</button>${rows}</div>`;
-    })
-    .join("");
-}
-
-async function renderTocPage() {
+function renderTocPage() {
   const parts = [
     `<button type="button" class="toc-page-cover-link">← К обложке</button>`,
   ];
-  let groups = null;
-  let catalog = [];
-  if (state.pages.some((page) => page.galaHub)) {
-    try {
-      [groups, catalog] = await Promise.all([loadGalaGroups(), loadGalaCatalog()]);
-    } catch {
-      groups = null;
-    }
-  }
+  let lastGroup = null;
   state.pages.forEach((page, index) => {
+    if (page.kind === "gala") {
+      if (page.galaGroup !== lastGroup) {
+        lastGroup = page.galaGroup;
+        parts.push(`<div class="toc-gala-label">${escapeHtml(page.galaGroupTitle)}</div>`);
+      }
+      parts.push(
+        `<button type="button" class="toc-page-item toc-gala-item" data-index="${index}"><span class="num">${escapeHtml(page.galaId)}</span><span class="title">${escapeHtml(page.title)}</span></button>`,
+      );
+      return;
+    }
+    lastGroup = null;
     if (page.kind === "part") {
       const label = page.subtitle ? `<span class="toc-part-label">${escapeHtml(page.subtitle)}</span>` : "";
       parts.push(
@@ -515,14 +509,9 @@ async function renderTocPage() {
       );
       return;
     }
-    const num = escapeHtml(page.id);
-    const title = escapeHtml(page.title);
     parts.push(
-      `<button type="button" class="toc-page-item" data-index="${index}"><span class="num">${num}</span><span class="title">${title}</span></button>`,
+      `<button type="button" class="toc-page-item" data-index="${index}"><span class="num">${escapeHtml(page.id)}</span><span class="title">${escapeHtml(page.title)}</span></button>`,
     );
-    if (page.galaHub && groups) {
-      parts.push(renderGalaToc(groups, catalog));
-    }
   });
   return `<div class="toc-page">${parts.join("")}</div>`;
 }
@@ -535,15 +524,9 @@ function bindTocPageClicks() {
       if (Number.isFinite(index)) openPage(index);
     });
   });
-  els.content.querySelectorAll(".toc-gala-link").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = btn.dataset.gala;
-      if (id) openGalaPage(id);
-    });
-  });
 }
 
-async function showToc() {
+function showToc() {
   leaveGala();
   hideCover();
   document.body.classList.remove("view-part");
@@ -553,8 +536,7 @@ async function showToc() {
   document.title = "Оглавление — Книга Открытий";
   history.replaceState(null, "", `${location.pathname}${location.search}#toc`);
   syncNav();
-  els.content.innerHTML = "<p>…</p>";
-  els.content.innerHTML = await renderTocPage();
+  els.content.innerHTML = renderTocPage();
   bindTocPageClicks();
   document.getElementById("reader").scrollTop = 0;
 }
@@ -562,6 +544,10 @@ async function showToc() {
 async function openPage(index) {
   const page = state.pages[index];
   if (!page) return;
+  if (page.kind === "gala") {
+    await openGalaBookPage(index);
+    return;
+  }
   leaveGala();
   state.index = index;
   hideCover();
@@ -581,7 +567,8 @@ async function openPage(index) {
     document.getElementById("reader").scrollTop = 0;
     return;
   }
-  setMeta(`${page.id} / ${state.pages.length}`);
+  const bookLen = state.pages.filter((item) => item.kind !== "gala").length;
+  setMeta(`${page.id} / ${bookLen}`);
   els.pageTitle.textContent = page.title;
   els.content.innerHTML = "<p>…</p>";
   try {
@@ -625,6 +612,12 @@ async function boot() {
     ...page,
     title: titleFromMd(page.md),
   }));
+  try {
+    const [groups, catalog] = await Promise.all([loadGalaGroups(), loadGalaCatalog()]);
+    state.pages = spliceGalaPages(state.pages, groups, catalog);
+  } catch {
+    // Guest pages stay omitted if Discourse is unreachable.
+  }
   els.coverEnter.addEventListener("click", enterBook);
   els.coverEnter.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -654,7 +647,13 @@ function applyHash() {
     return;
   }
   if (hash.startsWith("gala/")) {
-    openGalaPage(hash.slice(5));
+    const rest = hash.slice(5);
+    const index = findGalaPageIndex(rest);
+    if (index >= 0) {
+      openPage(index);
+      return;
+    }
+    openGalaPage(rest);
     return;
   }
   const fromHash = state.pages.findIndex((p) => p.id === hash);

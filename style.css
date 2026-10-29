@@ -530,45 +530,20 @@ body.view-part #content {
   flex: 1;
 }
 
-.toc-gala-block {
-  margin: 0.15rem 0 0.65rem 1.6rem;
-}
-
-.toc-gala-link {
-  display: block;
-  width: 100%;
-  margin: 0.45rem 0 0.15rem;
-  padding: 0.3rem 0.45rem;
-  border: none;
-  border-radius: 0.25rem;
-  background: transparent;
-  text-align: left;
-  font: inherit;
-  font-style: italic;
+.toc-gala-label {
+  margin: 0.55rem 0 0.1rem 1.6rem;
+  padding: 0.25rem 0.45rem 0.1rem;
   color: var(--accent);
-  cursor: pointer;
+  font-style: italic;
 }
 
-.toc-gala-link:hover,
-.toc-gala-link:focus-visible {
-  background: var(--accent-soft);
-  color: var(--ink);
-  outline: none;
+.toc-gala-item {
+  margin-left: 1.6rem;
+  width: calc(100% - 1.6rem);
 }
 
-.toc-gala-page {
-  display: flex;
-  align-items: baseline;
-  gap: 0.65rem;
-  padding: 0.2rem 0.45rem 0.2rem 0.9rem;
-  color: var(--muted);
-  font-size: 0.95rem;
-}
-
-.toc-gala-page .num {
+.toc-gala-item .num {
   min-width: 3.2rem;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 640px) {
