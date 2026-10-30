@@ -274,7 +274,7 @@ function titleFromMd(path) {
     .split("/")
     .pop()
     .replace(/\.md$/i, "")
-    .replace(/^(?:\d+(?:\.\d+)*(?:-\d+(?:\.\d+)*)?|А\d+|Б\d+|B|[IVX]+)\.?\s*/, "")
+    .replace(/^(?:\d+(?:\.\d+)*(?:-\d+(?:\.\d+)*)?|А\d+|Б\d+|В\d+|B|В|[IVX]+)\.?\s*/, "")
     .trim();
 }
 
