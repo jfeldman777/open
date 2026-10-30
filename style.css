@@ -447,6 +447,56 @@ body.view-part #content {
   padding-bottom: 1rem;
 }
 
+.toc-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 0.65rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.toc-search-wrap:focus-within {
+  border-color: var(--accent);
+}
+
+.toc-search-wrap .search-loupe {
+  display: flex;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+#toc-search {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+  outline: none;
+}
+
+#toc-search::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+.toc-search-empty {
+  margin: 0 0.45rem 0.55rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.toc-search-empty[hidden],
+.toc-row.toc-filter-hide {
+  display: none !important;
+}
+
 .toc-page-cover-link {
   align-self: flex-start;
   margin: 0 0 0.85rem;

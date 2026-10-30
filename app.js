@@ -20,6 +20,7 @@ const state = {
   galaId: null,
   galaFromIndex: null,
   galaRender: false,
+  tocQuery: "",
 };
 
 let galaCatalogPromise = null;
@@ -177,29 +178,38 @@ function galaPageTitle(page) {
   return titleFromMd(src.md).replace(/^-\s*/, "").trim() || src.id;
 }
 
+function appendGalaGroup(out, key, group, byId) {
+  let n = 0;
+  for (const gid of group.pages || []) {
+    const src = byId.get(gid);
+    if (!src) continue;
+    n += 1;
+    out.push({
+      id: `gala/${gid}`,
+      kind: "gala",
+      galaId: gid,
+      galaIndex: n,
+      galaGroup: key,
+      galaGroupTitle: group.title || key,
+      galaHideLabel: Boolean(group.hideLabel),
+      title: galaPageTitle(src),
+      source: src,
+    });
+  }
+}
+
 function spliceGalaPages(openPages, groups, catalog) {
   const byId = new Map((catalog || []).map((page) => [page.id, page]));
+  const pending = { ...(groups || {}) };
   const out = [];
   for (const page of openPages) {
     out.push(page);
-    if (!page.galaHub) continue;
-    for (const [key, group] of Object.entries(groups || {})) {
-      let n = 0;
-      for (const gid of group.pages || []) {
-        const src = byId.get(gid);
-        if (!src) continue;
-        n += 1;
-        out.push({
-          id: `gala/${gid}`,
-          kind: "gala",
-          galaId: gid,
-          galaIndex: n,
-          galaGroup: key,
-          galaGroupTitle: group.title || key,
-          title: galaPageTitle(src),
-          source: src,
-        });
-      }
+    for (const [key, group] of Object.entries(pending)) {
+      const atHub = page.galaHub && !group.after;
+      const atAfter = group.after && group.after === page.id;
+      if (!atHub && !atAfter) continue;
+      appendGalaGroup(out, key, group, byId);
+      delete pending[key];
     }
   }
   return out;
@@ -546,21 +556,122 @@ function syncNav() {
   setGalaNavDisabled(true, true);
 }
 
+function foldSearch(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/ё/g, "е");
+}
+
+function tocSearchHay(page) {
+  return foldSearch(
+    [page.id, page.title, page.subtitle, page.galaId, page.galaIndex, page.galaGroup, page.galaGroupTitle]
+      .filter((value) => value != null && value !== "")
+      .join(" "),
+  );
+}
+
+function seedSearchText() {
+  for (const page of state.pages) {
+    page.searchText = tocSearchHay(page);
+  }
+}
+
+function pageMarkdownUrl(page) {
+  if (page.kind === "gala") {
+    const src = page.source?.sourcePage || page.source;
+    if (!src?.md) return null;
+    return `${galaBase()}/${encodeURI(src.md)}`;
+  }
+  if (!page.md) return null;
+  return encodeURI(page.md);
+}
+
+function pageMatchesQuery(page, query) {
+  if (!query) return true;
+  return foldSearch(page.searchText || tocSearchHay(page)).includes(query);
+}
+
+async function mapPool(items, limit, fn) {
+  let i = 0;
+  const n = Math.min(limit, items.length);
+  if (!n) return;
+  await Promise.all(Array.from({ length: n }, async () => {
+    while (i < items.length) {
+      const item = items[i];
+      i += 1;
+      await fn(item);
+    }
+  }));
+}
+
+async function indexPageText(page) {
+  const url = pageMarkdownUrl(page);
+  const meta = tocSearchHay(page);
+  if (!url) {
+    page.searchText = meta;
+    return;
+  }
+  try {
+    const res = await fetch(url, { cache: "force-cache" });
+    if (!res.ok) throw new Error(String(res.status));
+    const text = await res.text();
+    page.searchText = foldSearch(`${meta}\n${text}`);
+  } catch {
+    page.searchText = meta;
+  }
+}
+
+async function indexBookSearch() {
+  const gala = [];
+  const own = [];
+  for (const page of state.pages) {
+    if (!pageMarkdownUrl(page)) continue;
+    if (page.kind === "gala") gala.push(page);
+    else own.push(page);
+  }
+  let indexed = 0;
+  await mapPool([...gala, ...own], 6, async (page) => {
+    await indexPageText(page);
+    indexed += 1;
+    if (indexed === gala.length || indexed % 12 === 0) {
+      if (isTocView()) applyTocFilter();
+    }
+  });
+  if (isTocView()) applyTocFilter();
+}
+
+function escapeAttr(text) {
+  return escapeHtml(String(text)).replace(/"/g, "&quot;");
+}
+
 function renderTocPage() {
+  const query = escapeAttr(state.tocQuery || "");
   const parts = [
     `<button type="button" class="toc-page-cover-link">← К обложке</button>`,
+    `<label class="toc-search-wrap">
+      <span class="search-loupe" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="6.5"></circle>
+          <path d="M20 20l-3.2-3.2"></path>
+        </svg>
+      </span>
+      <input id="toc-search" type="search" value="${query}" placeholder="Поиск по книге…" autocomplete="off" spellcheck="false" aria-label="Поиск по книге">
+    </label>`,
+    `<p class="toc-search-empty" hidden>Ничего не найдено</p>`,
   ];
   let lastGroup = null;
   state.pages.forEach((page, index) => {
     if (page.kind === "gala") {
       if (page.galaGroup !== lastGroup) {
         lastGroup = page.galaGroup;
-        parts.push(
-          `<button type="button" class="toc-gala-label" data-index="${index}">${escapeHtml(page.galaGroupTitle)}</button>`,
-        );
+        if (!page.galaHideLabel && page.galaGroupTitle) {
+          parts.push(
+            `<button type="button" class="toc-gala-label toc-row" data-index="${index}">${escapeHtml(page.galaGroupTitle)}</button>`,
+          );
+        }
       }
       parts.push(
-        `<button type="button" class="toc-page-item toc-gala-item" data-index="${index}"><span class="num">${page.galaIndex}</span><span class="title">${escapeHtml(page.title)}</span><span class="gala-page-id">(${escapeHtml(page.galaId)})</span></button>`,
+        `<button type="button" class="toc-page-item toc-gala-item toc-row" data-index="${index}"><span class="num">${page.galaIndex}</span><span class="title">${escapeHtml(page.title)}</span><span class="gala-page-id">(${escapeHtml(page.galaId)})</span></button>`,
       );
       return;
     }
@@ -568,15 +679,78 @@ function renderTocPage() {
     if (page.kind === "part") {
       const label = page.subtitle ? `<span class="toc-part-label">${escapeHtml(page.subtitle)}</span>` : "";
       parts.push(
-        `<button type="button" class="toc-part" data-index="${index}">${label}<span class="title">${escapeHtml(page.title)}</span></button>`,
+        `<button type="button" class="toc-part toc-row" data-index="${index}">${label}<span class="title">${escapeHtml(page.title)}</span></button>`,
       );
       return;
     }
     parts.push(
-      `<button type="button" class="toc-page-item" data-index="${index}"><span class="num">${escapeHtml(page.id)}</span><span class="title">${escapeHtml(page.title)}</span></button>`,
+      `<button type="button" class="toc-page-item toc-row" data-index="${index}"><span class="num">${escapeHtml(page.id)}</span><span class="title">${escapeHtml(page.title)}</span></button>`,
     );
   });
   return `<div class="toc-page">${parts.join("")}</div>`;
+}
+
+function applyTocFilter() {
+  const input = els.content.querySelector("#toc-search");
+  const empty = els.content.querySelector(".toc-search-empty");
+  const query = foldSearch((input?.value || state.tocQuery || "").trim());
+  const rows = [...els.content.querySelectorAll(".toc-row")];
+  if (!query) {
+    rows.forEach((el) => el.classList.remove("toc-filter-hide"));
+    if (empty) empty.hidden = true;
+    return;
+  }
+
+  const matches = rows.map((el) => {
+    const page = state.pages[Number(el.dataset.index)];
+    return Boolean(page && pageMatchesQuery(page, query));
+  });
+  const shown = matches.slice();
+
+  for (let i = 0; i < rows.length; i += 1) {
+    if (!matches[i]) continue;
+    const el = rows[i];
+    if (el.classList.contains("toc-part")) {
+      for (let j = i + 1; j < rows.length && !rows[j].classList.contains("toc-part"); j += 1) {
+        shown[j] = true;
+      }
+    }
+    if (el.classList.contains("toc-gala-label")) {
+      for (let j = i + 1; j < rows.length && rows[j].classList.contains("toc-gala-item"); j += 1) {
+        shown[j] = true;
+      }
+    }
+  }
+
+  for (let i = 0; i < rows.length; i += 1) {
+    if (shown[i]) continue;
+    const el = rows[i];
+    if (el.classList.contains("toc-gala-label")) {
+      for (let j = i + 1; j < rows.length && rows[j].classList.contains("toc-gala-item"); j += 1) {
+        if (shown[j]) {
+          shown[i] = true;
+          break;
+        }
+      }
+    }
+    if (el.classList.contains("toc-part")) {
+      for (let j = i + 1; j < rows.length && !rows[j].classList.contains("toc-part"); j += 1) {
+        if (shown[j]) {
+          shown[i] = true;
+          break;
+        }
+      }
+    }
+  }
+
+  rows.forEach((el, i) => el.classList.toggle("toc-filter-hide", !shown[i]));
+  if (empty) empty.hidden = shown.some(Boolean);
+}
+
+function firstVisibleTocPageIndex() {
+  const btn = els.content.querySelector(".toc-page-item:not(.toc-filter-hide)");
+  const index = Number(btn?.dataset.index);
+  return Number.isFinite(index) ? index : -1;
 }
 
 function bindTocPageClicks() {
@@ -587,6 +761,27 @@ function bindTocPageClicks() {
       if (Number.isFinite(index)) openPage(index);
     });
   });
+  const input = els.content.querySelector("#toc-search");
+  if (!input) return;
+  input.addEventListener("input", () => {
+    state.tocQuery = input.value;
+    applyTocFilter();
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && input.value) {
+      e.preventDefault();
+      input.value = "";
+      state.tocQuery = "";
+      applyTocFilter();
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const index = firstVisibleTocPageIndex();
+      if (index >= 0) openPage(index);
+    }
+  });
+  applyTocFilter();
+  queueMicrotask(() => input.focus());
 }
 
 function showToc() {
@@ -692,6 +887,8 @@ async function boot() {
   } catch {
     // Guest pages stay omitted if Discourse is unreachable.
   }
+  seedSearchText();
+  indexBookSearch();
   els.coverEnter.addEventListener("click", enterBook);
   els.coverEnter.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
